@@ -1,0 +1,41 @@
+name: Deploy MultiDocker
+on:
+  push:
+    branches:
+      - main
+ 
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Out Repo
+        uses: actions/checkout@v2
+          
+      - name: Build react-test container
+        run: docker build -t spinydaniel/react-test -f ./client/Dockerfile.dev ./client
+        
+      - name: Run tests  
+        run: docker run -e CI=true spinydaniel/react-test npm test -- --coverage
+        
+      - name: Build prod images
+        run: |
+          docker build -t danspiny/multi-client ./client
+          docker build -t danspiny/multi-nginx ./nginx
+          docker build -t danspiny/multi-server ./server
+          docker build -t danspiny/multi-worker ./worker
+        
+      - name: Log in to Docker Hub
+        # Alternative to following login-action 
+        # could be: - run: echo ${{ secrets.DOCKER_HUB_PASSWORD }} | docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+ 
+      - name: Push images to Docker Hub
+        run: |
+          docker push danspiny/multi-client
+          docker push danspiny/multi-nginx
+          docker push danspiny/multi-server
+          docker push danspiny/multi-worker
+          
